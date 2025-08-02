@@ -96,15 +96,39 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
 
-# ... باقي الكود كما هو في الإصدار السابق ...
+def setup_bot():
+    """Initialize the Telegram bot with handlers"""
+    application = ApplicationBuilder().token(TOKEN).build()
+    
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    
+    # Start the bot
+    application.run_polling()
+
+def run_flask_app():
+    """Run Flask app using Waitress"""
+    serve(app, host='0.0.0.0', port=8080)
 
 if __name__ == '__main__':
     try:
-        setup_bot()
-        logger.info("✅ Bot initialized successfully")
+        # Create downloads directory if not exists
+        if not os.path.exists('downloads'):
+            os.makedirs('downloads')
         
-        # Start production server
-        serve(app, host='0.0.0.0', port=8080)
+        # Start bot and Flask in separate threads
+        bot_thread = threading.Thread(target=setup_bot)
+        flask_thread = threading.Thread(target=run_flask_app)
+        
+        bot_thread.start()
+        flask_thread.start()
+        
+        logger.info("✅ Bot and Flask server started successfully")
+        
+        bot_thread.join()
+        flask_thread.join()
+        
     except Exception as e:
         logger.critical(f"❌ Failed to start bot: {str(e)}")
         raise
