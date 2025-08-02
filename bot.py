@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 from flask import Flask, request, jsonify
 from waitress import serve
-import asyncio
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -102,23 +102,25 @@ def home():
     return "Bot is running!"
 
 @app.route('/webhook', methods=['POST'])
-async def webhook():  # تم تغيير الدالة إلى async
-    try:
-        if not request.is_json:
-            logger.warning("Received non-JSON request")
-            return jsonify({"status": "error", "message": "Content type must be application/json"}), 400
-        
-        json_data = request.get_json()
-        logger.info(f"Received update: {json_data}")
-        
-        update = Update.de_json(json_data, application.bot)
-        await application.update_queue.put(update)  # الآن يمكن استخدام await
-        
-        return jsonify({"status": "ok"}), 200
-        
-    except Exception as e:
-        logger.error(f"Webhook processing error: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+def webhook():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            
+            def process_update(data):
+                try:
+                    update = Update.de_json(data, application.bot)
+                    application.update_queue.put(update)
+                except Exception as e:
+                    logger.error(f"Error processing update: {str(e)}")
+
+            threading.Thread(target=process_update, args=(data,)).start()
+            return jsonify({"status": "ok"}), 200
+            
+        except Exception as e:
+            logger.error(f"Webhook error: {str(e)}")
+            return jsonify({"status": "error"}), 200
+    return jsonify({"status": "invalid method"}), 405
 
 # Initialize Telegram Bot
 application = None
