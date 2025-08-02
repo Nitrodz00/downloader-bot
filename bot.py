@@ -12,7 +12,6 @@ from telegram.ext import (
 from flask import Flask, request, jsonify
 from waitress import serve
 import threading
-import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -57,34 +56,19 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             action="upload_video"
         )
         
+        # استبدال الروابط بواجهات عامة
+        if "instagram.com" in url:
+            url = url.replace("instagram.com", "ddinstagram.com")
+        elif "x.com" in url or "twitter.com" in url:
+            url = url.replace("x.com", "fxtwitter.com").replace("twitter.com", "fxtwitter.com")
+        elif "facebook.com" in url:
+            url = url.replace("facebook.com", "fdown.net")
+        elif "tiktok.com" in url:
+            url = url.replace("tiktok.com", "tiktx.com")
+        
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',
             'format': 'best[filesize<50M]',
-            'cookiefile': 'cookies.txt',
-            'extractor_args': {
-                'instagram': {
-                    'skip_auth': False,
-                    'credentials': {
-                        'username': os.getenv('INSTA_USER'),
-                        'password': os.getenv('INSTA_PASS')
-                    },
-                    'web_base_url': 'https://www.ddinstagram.com/'
-                },
-                'facebook': {
-                    'credentials': {
-                        'email': os.getenv('FB_EMAIL'),
-                        'password': os.getenv('FB_PASSWORD')
-                    }
-                },
-                'twitter': {
-                    'username': os.getenv('TWITTER_USER'),
-                    'password': os.getenv('TWITTER_PASS'),
-                    'x_auth': True
-                },
-                'tiktok': {
-                    'cookie': os.getenv('TIKTOK_COOKIE')
-                }
-            },
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Referer': 'https://www.google.com/'
@@ -112,37 +96,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
 
-@app.route('/')
-def home():
-    return "Bot is running!"
-
-@app.route('/webhook', methods=['POST'])
-async def webhook():
-    try:
-        data = request.get_json()
-        if not data or 'update_id' not in data:
-            return jsonify({"status": "invalid data"}), 400
-            
-        update = Update.de_json(data, application.bot)
-        await application.update_queue.put(update)
-        return jsonify({"status": "ok"}), 200
-        
-    except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        return jsonify({"status": "error"}), 200
-
-# Initialize Telegram Bot
-application = None
-
-def setup_bot():
-    global application
-    os.makedirs("downloads", exist_ok=True)
-    application = ApplicationBuilder().token(TOKEN).build()
-    
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
-    
-    return application
+# ... باقي الكود كما هو في الإصدار السابق ...
 
 if __name__ == '__main__':
     try:
