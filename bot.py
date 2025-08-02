@@ -22,17 +22,6 @@ BOT_DESCRIPTION = """
 ▫️ جودة HD بدون تشويه
 ▫️ سرعة فائقة في التحميل
 ▫️ واجهة سهلة الاستخدام
-
-📌 **المنصات المدعومة:**
-- تيك توك (بدون علامة مائية)
-- يوتيوب (بجودة 1080p)
-- إنستغرام (قصص/ريلز/منشورات)
-- تويتر/X (فيديوهات متعددة)
-
-⚡ **طريقة الاستخدام:**
-1. أرسل رابط الفيديو
-2. انتظر ثوانٍ قليلة
-3. استلم الفيديو بجودة عالية
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,11 +50,6 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'format': 'best[filesize<50M]',
             'quiet': True,
             'no_warnings': True,
-            'extractor_args': {
-                'youtube': {
-                    'skip': ['dash', 'hls']
-                }
-            },
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 'Accept-Language': 'en-US,en;q=0.5'
@@ -84,28 +68,34 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 supports_streaming=True
             )
             
-    except yt_dlp.utils.DownloadError as e:
-        if "Sign in to confirm" in str(e):
-            await msg.edit_text("⚠️ يوتيوب يطلب تأكيد الهوية، جرب رابطًا آخر")
-        else:
-            await msg.edit_text(f"❌ خطأ في التحميل: {str(e)}")
     except Exception as e:
-        await msg.edit_text(f"❌ حدث خطأ غير متوقع: {str(e)}")
+        await msg.edit_text(f"❌ حدث خطأ: {str(e)}")
     finally:
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
 
-if __name__ == '__main__':
+def main():
+    # إنشاء مجلد التحميلات إذا لم يكن موجوداً
+    os.makedirs("downloads", exist_ok=True)
+    
     try:
-        os.makedirs("downloads", exist_ok=True)
         app = ApplicationBuilder().token(TOKEN).build()
         
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
         
         print("🟢 البوت يعمل الآن...")
-        app.run_polling()
+        app.run_polling(
+            close_loop=False,
+            stop_signals=None
+        )
         
     except Conflict:
-        print("🔴 البوت يعمل بالفعل في مكان آخر!")
+        print("🔴 تم اكتشاف تشغيل آخر للبوت! يرجى إيقاف جميع النسخ الأخرى.")
         sys.exit(1)
+    except Exception as e:
+        print(f"🔴 خطأ غير متوقع: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
