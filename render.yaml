@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: social-downloader-bot
+    name: downloader-bot
     runtime: python
     plan: free
     buildCommand: |
