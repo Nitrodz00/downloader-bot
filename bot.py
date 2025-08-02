@@ -1,4 +1,12 @@
-import os
+import sys
+from telegram.error import Conflict
+
+try:
+    # ... باقي الكود ...
+except Conflict as e:
+    print("⚠️ خطأ: البوت يعمل بالفعل في مكان آخر!")
+    sys.exit(1)
+    import os
 import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
