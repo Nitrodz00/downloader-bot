@@ -9,6 +9,7 @@ from telegram.ext import (
     filters
 )
 from flask import Flask, request, jsonify
+from waitress import serve  # إضافة خادم إنتاجي
 
 # Flask App Setup
 app = Flask(__name__)
@@ -39,6 +40,11 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("⏳ جاري معالجة طلبك...")
     
     try:
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action="upload_video"
+        )
+        
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',
             'format': 'best[filesize<50M]',
@@ -46,9 +52,10 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'extractor_args': {
                 'instagram': {'skip_auth': False},
                 'facebook': {'credentials': {'email': os.getenv('FB_EMAIL'), 'password': os.getenv('FB_PASSWORD')}},
+                'twitter': {'username': os.getenv('TWITTER_USER'), 'password': os.getenv('TWITTER_PASS')}
             },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         }
         
@@ -59,7 +66,8 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=open(file_path, 'rb'),
-                caption=f"✅ {info.get('title', '')}"
+                caption=f"✅ {info.get('title', '')}",
+                supports_streaming=True
             )
         await msg.delete()
     except Exception as e:
@@ -75,9 +83,11 @@ def home():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    update = Update.de_json(request.get_json(), bot)
-    dispatcher.process_update(update)
-    return jsonify(status="ok")
+    if request.method == 'POST':
+        update = Update.de_json(request.get_json(), bot_app.bot)
+        bot_app.dispatcher.process_update(update)
+        return jsonify(status="ok"), 200
+    return jsonify(status="Method not allowed"), 405
 
 # Initialize Telegram Bot
 def setup_bot():
@@ -92,8 +102,6 @@ def setup_bot():
 if __name__ == '__main__':
     # Initialize bot components
     bot_app = setup_bot()
-    bot = bot_app.bot
-    dispatcher = bot_app
     
-    # Start Flask app
-    app.run(host='0.0.0.0', port=8080)
+    # Start production server
+    serve(app, host='0.0.0.0', port=8080)
