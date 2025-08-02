@@ -15,16 +15,24 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# BIO احترافي للبوت
 BOT_DESCRIPTION = """
 📥 **بوت التحميل المتقدم** 🚀
 
-▫️ يحمل فيديوهات من كل المنصات
-▫️ يدعم: تيك توك، يوتيوب، إنستغرام، تويتر
-▫️ جودة عالية بدون علامة مائية
-▫️ سرعة تحميل فائقة
+▫️ يدعم جميع المنصات الرئيسية
+▫️ جودة HD بدون تشويه
+▫️ سرعة فائقة في التحميل
+▫️ واجهة سهلة الاستخدام
 
-⚡ فقط أرسل الرابط وسأحضر المحتوى لك!
+📌 **المنصات المدعومة:**
+- تيك توك (بدون علامة مائية)
+- يوتيوب (بجودة 1080p)
+- إنستغرام (قصص/ريلز/منشورات)
+- تويتر/X (فيديوهات متعددة)
+
+⚡ **طريقة الاستخدام:**
+1. أرسل رابط الفيديو
+2. انتظر ثوانٍ قليلة
+3. استلم الفيديو بجودة عالية
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,13 +40,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("مشاركة البوت 📲", url="https://t.me/share/url?url=https://t.me/AllDownloadspeed_bot")]
     ])
     
-    start_message = f"""
-    🎬 **مرحباً بك في بوت التحميل!**\n
-    {BOT_DESCRIPTION}
-    """
-    
     await update.message.reply_text(
-        start_message,
+        BOT_DESCRIPTION,
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -48,7 +51,6 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("⏳ جاري معالجة طلبك...")
     
     try:
-        # إضافة شعار أثناء التحميل
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action="upload_video"
@@ -56,30 +58,39 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',
-            'format': 'best',
+            'format': 'best[filesize<50M]',
             'quiet': True,
             'no_warnings': True,
-            'progress_hooks': [lambda d: print(d['status'])]
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls']
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Accept-Language': 'en-US,en;q=0.5'
+            }
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
             
-            if os.path.getsize(file_path) > 50 * 1024 * 1024:
-                await msg.edit_text("⚠️ الحد الأقصى لحجم الفيديو: 50MB")
-                os.remove(file_path)
-                return
-                
             await msg.edit_text("📤 جاري رفع الفيديو...")
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=open(file_path, 'rb'),
-                caption=f"✅ تم التحميل بنجاح\n{info.get('title', '')}"
+                caption=f"✅ {info.get('title', '')}",
+                supports_streaming=True
             )
             
+    except yt_dlp.utils.DownloadError as e:
+        if "Sign in to confirm" in str(e):
+            await msg.edit_text("⚠️ يوتيوب يطلب تأكيد الهوية، جرب رابطًا آخر")
+        else:
+            await msg.edit_text(f"❌ خطأ في التحميل: {str(e)}")
     except Exception as e:
-        await msg.edit_text(f"❌ حدث خطأ: {str(e)}")
+        await msg.edit_text(f"❌ حدث خطأ غير متوقع: {str(e)}")
     finally:
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
@@ -95,9 +106,6 @@ if __name__ == '__main__':
         print("🟢 البوت يعمل الآن...")
         app.run_polling()
         
-    except Conflict as e:
-        print(f"🔴 خطأ: {e} (البوت يعمل بالفعل في مكان آخر!)")
-        sys.exit(1)
-    except Exception as e:
-        print(f"🔴 خطأ غير متوقع: {e}")
+    except Conflict:
+        print("🔴 البوت يعمل بالفعل في مكان آخر!")
         sys.exit(1)
