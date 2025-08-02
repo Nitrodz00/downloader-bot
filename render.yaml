@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: downloader-bot
+    name: social-downloader-bot
     runtime: python
     plan: free
     buildCommand: |
@@ -10,6 +10,10 @@ services:
     envVars:
       - key: TELEGRAM_TOKEN
         value: ${TELEGRAM_TOKEN}
+      - key: INSTA_USER
+        value: ${INSTA_USER}
+      - key: INSTA_PASS
+        value: ${INSTA_PASS}
       - key: FB_EMAIL
         value: ${FB_EMAIL}
       - key: FB_PASSWORD
@@ -18,4 +22,6 @@ services:
         value: ${TWITTER_USER}
       - key: TWITTER_PASS
         value: ${TWITTER_PASS}
+      - key: TIKTOK_COOKIE
+        value: ${TIKTOK_COOKIE}
     port: 8080
