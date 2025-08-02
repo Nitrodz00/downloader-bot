@@ -141,43 +141,28 @@ def home():
 def health_check():
     return jsonify({"status": "healthy", "version": "2.0"})
 
-# Bot Setup
-async def run_bot():
-    application = ApplicationBuilder() \
-        .token(TOKEN) \
-        .post_init(disable_signals) \
-        .build()
+def run_flask():
+    """Run Flask server"""
+    logger.info(f"🌐 Starting Flask server on port {PORT}")
+    serve(app, host="0.0.0.0", port=PORT, threads=4)
+
+def run_bot():
+    """Run Telegram bot with proper event loop"""
+    application = ApplicationBuilder().token(TOKEN).build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
     
-    await application.run_polling()
-
-async def disable_signals(app):
-    """Disable signal handling in non-main threads"""
-    app.updater.running = True
-
-def run_flask_server():
-    """Run Flask with production settings"""
-    serve(app, host="0.0.0.0", port=PORT, threads=4)
+    logger.info("🤖 Starting Telegram Bot")
+    application.run_polling()
 
 if __name__ == '__main__':
     # Create downloads directory
     os.makedirs("downloads", exist_ok=True)
     
-    # Start Flask in a daemon thread
-    flask_thread = threading.Thread(target=run_flask_server, daemon=True)
+    # Start Flask in a thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    # Run bot in main thread with proper signal handling
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    try:
-        logger.info(f"🚀 Starting bot on port {PORT}")
-        loop.run_until_complete(run_bot())
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.close()
-        logger.info("🛑 Bot stopped gracefully")
+    # Run bot in main thread (required for Windows compatibility)
+    run_bot()
