@@ -75,10 +75,12 @@ if __name__ == '__main__':
 
     print("✅ البوت يعمل الآن...")
     
-    # إعدادات خاصة بـ Render
-    PORT = int(os.environ.get('PORT', 5000))
-    app.run_polling(
-        host="0.0.0.0",
-        port=PORT,
-        webhook_url=None  # تأكيد استخدام Long Polling
-    )
+    # استبدال هذا الجزء:
+    # app.run_polling(
+    #     host="0.0.0.0",
+    #     port=PORT,
+    #     webhook_url=None
+    # )
+    
+    # بهذا:
+    app.run_polling()
