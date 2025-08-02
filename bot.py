@@ -26,7 +26,7 @@ BOT_DESCRIPTION = """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("مشاركة البوت 📲", url="https://t.me/share/url?url=https://t.me/AllDownloadspeed_bot")]
+        [InlineKeyboardButton("مشاركة البوت 📲", url="https://t.me/share/url?url=https://t.me/SpeedNitroDownload_bot")]
     ])
     
     await update.message.reply_text(
