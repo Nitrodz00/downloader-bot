@@ -1,5 +1,4 @@
 import os
-import sys
 import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -9,50 +8,47 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from telegram.error import Conflict
-from dotenv import load_dotenv
+from flask import Flask, request, jsonify
 
-load_dotenv()
+# Flask App Setup
+app = Flask(__name__)
+
+# Load Environment Variables
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 BOT_DESCRIPTION = """
 📥 **بوت التحميل المتقدم** 🚀
 
-▫️ يدعم جميع المنصات الرئيسية
+▫️ يدعم جميع المنصات (إنستجرام، تيك توك، تويتر، فيسبوك)
 ▫️ جودة HD بدون تشويه
 ▫️ سرعة فائقة في التحميل
-▫️ أرسل رابط المقطع و سيتم تحميله
+▫️ أرسل رابط المقطع وسيتم تحميله
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("مشاركة البوت 📲", url="https://t.me/share/url?url=https://t.me/SpeedNitroDownload_bot")]
+        [InlineKeyboardButton("مشاركة البوت 📲", 
+         url="https://t.me/share/url?url=https://t.me/SpeedNitroDownload_bot")],
+        [InlineKeyboardButton("الدعم الفني", 
+         url="https://t.me/YourSupportChannel")]
     ])
-    
-    await update.message.reply_text(
-        BOT_DESCRIPTION,
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
+    await update.message.reply_text(BOT_DESCRIPTION, reply_markup=keyboard)
 
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
     msg = await update.message.reply_text("⏳ جاري معالجة طلبك...")
     
     try:
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id,
-            action="upload_video"
-        )
-        
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',
             'format': 'best[filesize<50M]',
-            'quiet': True,
-            'no_warnings': True,
+            'cookiefile': 'cookies.txt',
+            'extractor_args': {
+                'instagram': {'skip_auth': False},
+                'facebook': {'credentials': {'email': os.getenv('FB_EMAIL'), 'password': os.getenv('FB_PASSWORD')}},
+            },
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                'Accept-Language': 'en-US,en;q=0.5'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
             }
         }
         
@@ -60,51 +56,44 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
             
-            await msg.edit_text("📤 جاري رفع الفيديو...")
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=open(file_path, 'rb'),
-                caption=f"✅ {info.get('title', '')}",
-                supports_streaming=True
+                caption=f"✅ {info.get('title', '')}"
             )
-            
+        await msg.delete()
     except Exception as e:
         await msg.edit_text(f"❌ حدث خطأ: {str(e)}")
     finally:
         if 'file_path' in locals() and os.path.exists(file_path):
             os.remove(file_path)
 
-def main():
-    # إنشاء مجلد التحميلات إذا لم يكن موجوداً
-    os.makedirs("downloads", exist_ok=True)
-    
-    try:
-        app = ApplicationBuilder().token(TOKEN).build()
-        
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
-        
-        print("🟢 البوت يعمل الآن...")
-        app.run_polling(
-            close_loop=False,
-            stop_signals=None
-        )
-        
-    except Conflict:
-        print("🔴 تم اكتشاف تشغيل آخر للبوت! يرجى إيقاف جميع النسخ الأخرى.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"🔴 خطأ غير متوقع: {e}")
-        sys.exit(1)
-
-if __name__ == '__main__':
-    main()
-    from flask import Flask
-app = Flask(__name__)
-
+# Flask Routes
 @app.route('/')
 def home():
     return "Bot is running!"
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(), bot)
+    dispatcher.process_update(update)
+    return jsonify(status="ok")
+
+# Initialize Telegram Bot
+def setup_bot():
+    os.makedirs("downloads", exist_ok=True)
+    application = ApplicationBuilder().token(TOKEN).build()
+    
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    
+    return application
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)  # ← الاستماع على المنفذ 8080
+    # Initialize bot components
+    bot_app = setup_bot()
+    bot = bot_app.bot
+    dispatcher = bot_app
+    
+    # Start Flask app
+    app.run(host='0.0.0.0', port=8080)
