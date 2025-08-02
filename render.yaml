@@ -1,11 +1,17 @@
 services:
   - type: web
-    name: telegram-video-downloader
+    name: social-downloader-bot
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py  # تأكد أن الكود يستمع على منفذ
+    buildCommand: |
+      pip install -r requirements.txt
+      mkdir -p downloads
+    startCommand: python bot.py
     envVars:
       - key: TELEGRAM_TOKEN
-        value: 7039618376:AAEEx3Yp2Mto2GChJ2M5w01ugyPQbJhePeA
-    port: 8080  # ← تحديد المنفذ هنا
+        value: ${TELEGRAM_TOKEN}
+      - key: FB_EMAIL
+        value: ${FB_EMAIL}
+      - key: FB_PASSWORD
+        value: ${FB_PASSWORD}
+    port: 8080
