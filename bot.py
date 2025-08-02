@@ -13,8 +13,9 @@ from telegram.ext import (
 from flask import Flask, jsonify
 from waitress import serve
 import threading
+import signal
 
-# Configuration
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -23,50 +24,52 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Security Warning: Never expose real token in code!
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_BOT_TOKEN_HERE")  # Replace with your token
-PORT = int(os.getenv("PORT", 8080))
+# Security Warning: Use environment variables in production!
+TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_BOT_TOKEN_HERE")
+PORT = int(os.getenv("PORT", 10000))
 MAX_FILE_SIZE = 1000 * 1024 * 1024  # 1000MB
 
 # Multi-language support
 LANGUAGES = {
     'en': {
-        'start': "🎬 **Video Download Bot**\n\nSend me a video link from:\nInstagram, TikTok, Twitter, Facebook\n\nMax size: 1000MB",
+        'start': "🎬 **Advanced Video Downloader**\n\n• Supports: Instagram, TikTok, Twitter, Facebook\n• Max size: 1000MB\n• Fast HD downloads",
         'processing': "⏳ Downloading your video...",
         'success': "✅ Download complete!",
         'error': "❌ Error:",
         'size_exceeded': "⚠️ File exceeds 1000MB limit",
-        'unsupported': "🚫 Unsupported link",
-        'help': "🆘 Need help? Contact @YourSupport"
+        'unsupported': "🚫 Unsupported link type",
+        'help': "🆘 Need help? Contact @YourSupport",
+        'share': "📲 Share Bot"
     },
     'ar': {
-        'start': "🎬 **بوت تحميل الفيديوهات**\n\nأرسل رابط فيديو من:\nإنستجرام، تيك توك، تويتر، فيسبوك\n\nأقصى حجم: 1000 ميجابايت",
+        'start': "🎬 **بوت التحميل المتقدم**\n\n• يدعم: إنستجرام، تيك توك، تويتر، فيسبوك\n• أقصى حجم: 1000 ميجابايت\n• تحميل بجودة HD",
         'processing': "⏳ جاري تحميل الفيديو...",
-        'success': "✅ اكتمل التحميل!",
-        'error': "❌ خطأ:",
+        'success': "✅ اكتمل التحميل بنجاح!",
+        'error': "❌ حدث خطأ:",
         'size_exceeded': "⚠️ الملف يتجاوز حد 1000 ميجابايت",
-        'unsupported': "🚫 الرابط غير مدعوم",
-        'help': "🆘 للمساعدة تواصل @الدعم_الفني"
+        'unsupported': "🚫 نوع الرابط غير مدعوم",
+        'help': "🆘 للمساعدة تواصل @الدعم_الفني",
+        'share': "📲 مشاركة البوت"
     }
 }
 
-# Utility functions
 def detect_language(update: Update) -> str:
-    return 'ar' if update.effective_user.language_code and 'ar' in update.effective_user.language_code else 'en'
+    return 'ar' if update.effective_user and update.effective_user.language_code and 'ar' in update.effective_user.language_code else 'en'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = detect_language(update)
     keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(LANGUAGES[lang]['share'], url="https://t.me/share/url?url=https://t.me/YourBotUsername")],
         [InlineKeyboardButton(LANGUAGES[lang]['help'], url="https://t.me/YourSupport")]
     ])
     await update.message.reply_text(LANGUAGES[lang]['start'], reply_markup=keyboard)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = detect_language(update)
     url = update.message.text.strip()
     
-    # Validate URL
-    if not any(domain in url for domain in ['instagram', 'tiktok', 'twitter', 'x.com', 'facebook']):
+    # Validate supported platforms
+    if not any(x in url for x in ['instagram', 'tiktok', 'twitter', 'x.com', 'facebook']):
         await update.message.reply_text(LANGUAGES[lang]['unsupported'])
         return
 
@@ -78,18 +81,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 .replace("x.com", "fxtwitter.com")
                 .replace("twitter.com", "fxtwitter.com")
                 .replace("tiktok.com", "tiktx.com")
-                .replace("facebook.com", "fdown.net"))
+                .replace("facebook.com", "fdown.net")
+                .replace("m.facebook.com", "fdown.net"))
 
         ydl_opts = {
             'outtmpl': 'downloads/%(id)s.%(ext)s',
-            'format': 'best',
-            'max_filesize': MAX_FILE_SIZE,
+            'format': 'best[filesize<1000M]',
             'noplaylist': True,
             'quiet': True,
             'extractor_args': {
                 'instagram': {'skip': ['auth']},
                 'facebook': {'skip': ['auth']},
                 'tiktok': {'skip': ['auth']}
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
             }
         }
 
@@ -120,7 +126,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await msg.delete()
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Download error: {str(e)}")
         await msg.edit_text(f"{LANGUAGES[lang]['error']} {str(e)}")
     finally:
         if 'file_path' in locals() and os.path.exists(file_path):
@@ -129,36 +135,49 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Flask Routes
 @app.route('/')
 def home():
-    return jsonify({"status": "active", "service": "Telegram Video Downloader"})
+    return jsonify({"status": "active", "service": "Advanced Video Downloader"})
 
 @app.route('/health')
 def health_check():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "healthy", "version": "2.0"})
 
 # Bot Setup
 async def run_bot():
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder() \
+        .token(TOKEN) \
+        .post_init(disable_signals) \
+        .build()
+    
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    
     await application.run_polling()
 
-def setup_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(run_bot())
+async def disable_signals(app):
+    """Disable signal handling in non-main threads"""
+    app.updater.running = True
 
-def run_flask():
+def run_flask_server():
+    """Run Flask with production settings"""
     serve(app, host="0.0.0.0", port=PORT, threads=4)
 
 if __name__ == '__main__':
     # Create downloads directory
     os.makedirs("downloads", exist_ok=True)
     
-    # Start threads
-    threading.Thread(target=setup_bot, daemon=True).start()
-    threading.Thread(target=run_flask, daemon=True).start()
+    # Start Flask in a daemon thread
+    flask_thread = threading.Thread(target=run_flask_server, daemon=True)
+    flask_thread.start()
     
-    # Keep application running
-    logger.info(f"🚀 Bot started on port {PORT}")
-    while True:
+    # Run bot in main thread with proper signal handling
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        logger.info(f"🚀 Starting bot on port {PORT}")
+        loop.run_until_complete(run_bot())
+    except KeyboardInterrupt:
         pass
+    finally:
+        loop.close()
+        logger.info("🛑 Bot stopped gracefully")
