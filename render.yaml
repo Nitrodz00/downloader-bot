@@ -1,27 +1,12 @@
 services:
   - type: web
-    name: social-downloader-bot
-    runtime: python
-    plan: free
-    buildCommand: |
-      pip install -r requirements.txt
-      mkdir -p downloads
+    name: video-downloader
+    env: python
+    buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     envVars:
+      - key: PORT
+        value: 10000
       - key: TELEGRAM_TOKEN
-        value: ${TELEGRAM_TOKEN}
-      - key: INSTA_USER
-        value: ${INSTA_USER}
-      - key: INSTA_PASS
-        value: ${INSTA_PASS}
-      - key: FB_EMAIL
-        value: ${FB_EMAIL}
-      - key: FB_PASSWORD
-        value: ${FB_PASSWORD}
-      - key: TWITTER_USER
-        value: ${TWITTER_USER}
-      - key: TWITTER_PASS
-        value: ${TWITTER_PASS}
-      - key: TIKTOK_COOKIE
-        value: ${TIKTOK_COOKIE}
-    port: 8080
+        fromDatabase: false
+        value: 7039618376:AAEEx3Yp2Mto2GChJ2M5w01ugyPQbJhePeA
