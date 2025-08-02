@@ -14,4 +14,8 @@ services:
         value: ${FB_EMAIL}
       - key: FB_PASSWORD
         value: ${FB_PASSWORD}
+      - key: TWITTER_USER
+        value: ${TWITTER_USER}
+      - key: TWITTER_PASS
+        value: ${TWITTER_PASS}
     port: 8080
