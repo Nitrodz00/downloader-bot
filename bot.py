@@ -21,7 +21,7 @@ BOT_DESCRIPTION = """
 ▫️ يدعم جميع المنصات الرئيسية
 ▫️ جودة HD بدون تشويه
 ▫️ سرعة فائقة في التحميل
-▫️ واجهة سهلة الاستخدام
+▫️ أرسل رابط المقطع و سيتم تحميله
 """
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
