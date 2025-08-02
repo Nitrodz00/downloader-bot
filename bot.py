@@ -74,4 +74,11 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
     print("✅ البوت يعمل الآن...")
-    app.run_polling()
+    
+    # إعدادات خاصة بـ Render
+    PORT = int(os.environ.get('PORT', 5000))
+    app.run_polling(
+        host="0.0.0.0",
+        port=PORT,
+        webhook_url=None  # تأكيد استخدام Long Polling
+    )
