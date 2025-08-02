@@ -12,6 +12,7 @@ from telegram.ext import (
 from flask import Flask, request, jsonify
 from waitress import serve
 import threading
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -102,25 +103,23 @@ def home():
     return "Bot is running!"
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == 'POST':
-        try:
-            data = request.get_json()
+async def webhook():
+    try:
+        data = request.get_json()
+        
+        # التحقق من البيانات الأساسية
+        if not data or 'update_id' not in data:
+            logger.error(f"Invalid update data: {data}")
+            return jsonify({"status": "invalid data"}), 400
             
-            def process_update(data):
-                try:
-                    update = Update.de_json(data, application.bot)
-                    application.update_queue.put(update)
-                except Exception as e:
-                    logger.error(f"Error processing update: {str(e)}")
-
-            threading.Thread(target=process_update, args=(data,)).start()
-            return jsonify({"status": "ok"}), 200
-            
-        except Exception as e:
-            logger.error(f"Webhook error: {str(e)}")
-            return jsonify({"status": "error"}), 200
-    return jsonify({"status": "invalid method"}), 405
+        update = Update.de_json(data, application.bot)
+        await application.update_queue.put(update)
+        
+        return jsonify({"status": "ok"}), 200
+        
+    except Exception as e:
+        logger.error(f"Webhook error: {str(e)}")
+        return jsonify({"status": "error"}), 200
 
 # Initialize Telegram Bot
 application = None
@@ -138,10 +137,18 @@ def setup_bot():
 if __name__ == '__main__':
     try:
         setup_bot()
-        logger.info("Bot initialized successfully")
+        logger.info("✅ Bot initialized successfully")
         
-        # Production server
-        serve(app, host='0.0.0.0', port=8080)
+        # Start web server in a separate thread
+        def run_server():
+            serve(app, host='0.0.0.0', port=8080)
+            
+        server_thread = threading.Thread(target=run_server)
+        server_thread.start()
+        
+        # Start bot with polling as fallback
+        application.run_polling()
+        
     except Exception as e:
-        logger.critical(f"Failed to start bot: {str(e)}")
+        logger.critical(f"❌ Failed to start bot: {str(e)}")
         raise
