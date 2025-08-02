@@ -11,6 +11,7 @@ from telegram.ext import (
 )
 from flask import Flask, request, jsonify
 from waitress import serve
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -101,7 +102,7 @@ def home():
     return "Bot is running!"
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
+async def webhook():  # تم تغيير الدالة إلى async
     try:
         if not request.is_json:
             logger.warning("Received non-JSON request")
@@ -111,7 +112,7 @@ def webhook():
         logger.info(f"Received update: {json_data}")
         
         update = Update.de_json(json_data, application.bot)
-        await application.update_queue.put(update)
+        await application.update_queue.put(update)  # الآن يمكن استخدام await
         
         return jsonify({"status": "ok"}), 200
         
