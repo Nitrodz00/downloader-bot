@@ -110,15 +110,20 @@ def webhook():
         json_data = request.get_json()
         logger.info(f"Received update: {json_data}")
         
-        update = Update.de_json(json_data, bot_app.bot)
-        bot_app.dispatcher.process_update(update)
+        update = Update.de_json(json_data, application.bot)
+        await application.update_queue.put(update)
+        
         return jsonify({"status": "ok"}), 200
         
     except Exception as e:
         logger.error(f"Webhook processing error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Initialize Telegram Bot
+application = None
+
 def setup_bot():
+    global application
     os.makedirs("downloads", exist_ok=True)
     application = ApplicationBuilder().token(TOKEN).build()
     
@@ -129,7 +134,7 @@ def setup_bot():
 
 if __name__ == '__main__':
     try:
-        bot_app = setup_bot()
+        setup_bot()
         logger.info("Bot initialized successfully")
         
         # Production server
