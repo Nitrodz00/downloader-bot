@@ -17,7 +17,6 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("شارك البوت 📣", url="https://t.me/share/url?url=https://t.me/AllDownloadspeed_bot")],
-        [InlineKeyboardButton("مساعدة ❓", callback_data="help")]
     ])
     await update.message.reply_text(
         "👋 مرحباً! أرسل رابط فيديو وسأقوم بتحميله لك.",
