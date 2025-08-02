@@ -6,5 +6,5 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
     environment:
-      TELEGRAM_TOKEN: 8455618117:AAGL5ogQ7ZdMY0iM6cxR5P-mm0yn8xBSyw0
+      TELEGRAM_TOKEN: 7039618376:AAEEx3Yp2Mto2GChJ2M5w01ugyPQbJhePeA
       pythonVersion: 3.11.7
