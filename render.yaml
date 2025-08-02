@@ -1,10 +1,12 @@
 services:
   - type: worker
     name: telegram-video-downloader
-    env: python
+    runtime: python  # ← تم تصحيحه من 'env' إلى 'runtime'
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
-    environment:
-      TELEGRAM_TOKEN: 7039618376:AAEEx3Yp2Mto2GChJ2M5w01ugyPQbJhePeA
-      pythonVersion: 3.11.7
+    startCommand: python bot.py  # تأكد أن اسم الملف هو 'bot.py'
+    envVars:  # ← 'environment' غير مدعوم في الإصدارات الجديدة، استخدم 'envVars'
+      - key: TELEGRAM_TOKEN
+        value: 7039618376:AAEEx3Yp2Mto2GChJ2M5w01ugyPQbJhePeA
+      - key: pythonVersion
+        value: 3.11.7
