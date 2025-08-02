@@ -1,0 +1,10 @@
+services:
+  - type: worker
+    name: telegram-video-downloader
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    environment:
+      TELEGRAM_TOKEN: 8455618117:AAGL5ogQ7ZdMY0iM6cxR5P-mm0yn8xBSyw0
+      pythonVersion: 3.11.7
